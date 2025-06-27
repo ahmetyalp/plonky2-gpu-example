@@ -33,9 +33,6 @@ use plonky2_field::zero_poly_coset::ZeroPolyOnCoset;
 use plonky2_util::{log2_ceil, log2_strict};
 
 #[cfg(feature = "cuda")]
-use plonky2::plonk::prover::my_prove;
-
-#[cfg(feature = "cuda")]
 use plonky2::fri::oracle::CudaInnerContext;
 
 #[cfg(feature = "cuda")]
@@ -102,14 +99,12 @@ where
         let stream = Stream::new(StreamFlags::NON_BLOCKING, None)?;
         let stream2 = Stream::new(StreamFlags::NON_BLOCKING, None)?;
 
-        let circuit_config = CircuitConfig::standard_recursion_config();
-
-        let poly_num: usize = circuit_config.num_wires;
+        let poly_num: usize = data.common.config.num_wires;
         let values_num_per_poly = 1 << 2; // Degree of the circuit
         let blinding = false; // Because zero knowledge is false
         const SALT_SIZE: usize = 4;
-        let rate_bits = circuit_config.fri_config.rate_bits;
-        let cap_height = circuit_config.fri_config.cap_height;
+        let rate_bits = data.common.config.fri_config.rate_bits;
+        let cap_height = data.common.config.fri_config.cap_height;
 
         let lg_n = log2_strict(values_num_per_poly);
         let n_inv = F::inverse_2exp(lg_n);
@@ -126,8 +121,8 @@ where
             ext_values_flatten.set_len(ext_values_flatten_len);
         }
 
-        let mut values_flatten: Vec<F, MyAllocator> =
-            Vec::with_capacity_in(values_flatten_len, MyAllocator {});
+        let mut values_flatten: Vec<F, CUDAAllocator> =
+            Vec::with_capacity_in(values_flatten_len, CUDAAllocator {});
         unsafe {
             values_flatten.set_len(values_flatten_len);
         }
@@ -142,8 +137,8 @@ where
                 ext_values_flatten.set_len(ext_values_flatten_len);
             }
 
-            let mut values_flatten: Vec<F, MyAllocator> =
-                Vec::with_capacity_in(values_flatten_len, MyAllocator {});
+            let mut values_flatten: Vec<F, CUDAAllocator> =
+                Vec::with_capacity_in(values_flatten_len, CUDAAllocator {});
             unsafe {
                 values_flatten.set_len(values_flatten_len);
             }
@@ -160,8 +155,8 @@ where
                 ext_values_flatten.set_len(ext_values_flatten_len);
             }
 
-            let mut values_flatten: Vec<F, MyAllocator> =
-                Vec::with_capacity_in(values_flatten_len, MyAllocator {});
+            let mut values_flatten: Vec<F, CUDAAllocator> =
+                Vec::with_capacity_in(values_flatten_len, CUDAAllocator {});
             unsafe {
                 values_flatten.set_len(values_flatten_len);
             }
@@ -278,12 +273,12 @@ where
         "num_gate_constraints: {}, num_constraints: {}, selectors_info: {:?}",
         data.common.num_gate_constraints, data.common.num_constants, data.common.selectors_info,
     );
-    let proof = my_prove(
+    let proof = prove(
         &data.prover_only,
         &data.common,
         pw.clone(),
         &mut timing,
-        &mut ctx,
+        Some(&mut ctx),
     )?;
 
     timing.print();
@@ -327,7 +322,14 @@ where
         "num_gate_constraints: {}, num_constraints: {}, selectors_info: {:?}",
         data.common.num_gate_constraints, data.common.num_constants, data.common.selectors_info,
     );
-    let proof = prove(&data.prover_only, &data.common, pw, &mut timing)?;
+    let proof = prove(
+      &data.prover_only,
+      &data.common,
+      pw,
+      &mut timing,
+      #[cfg(feature = "cuda")]
+      None,
+    )?;
     data.verify(proof.clone()).expect("verify error");
 
     timing.print();
@@ -343,13 +345,6 @@ struct Cli {
     b: Option<u64>,
     #[arg(short, long)]
     c: Option<u64>,
-}
-
-pub fn decode_hex(s: &String) -> Result<Vec<u8>, ParseIntError> {
-    (0..s.len())
-        .step_by(2)
-        .map(|i| u8::from_str_radix(&s[i..i + 2], 16))
-        .collect()
 }
 
 fn main() -> Result<()> {
@@ -371,10 +366,10 @@ fn main() -> Result<()> {
 
     #[cfg(feature = "cuda")]
     {
-        let proof = prove_ed25519_cuda::<F, C, D>(
-            decode_hex(&args.msg.unwrap())?.as_slice(),
-            decode_hex(&args.sig.unwrap())?.as_slice(),
-            decode_hex(&args.pk.unwrap())?.as_slice(),
+        let proof = prove_sum_cuda::<F, C, D>(
+            args.a.unwrap_or(1),
+            args.b.unwrap_or(2),
+            args.c.unwrap_or(3),
         )?;
         println!("Num public inputs: {}", proof.2.num_public_inputs);
     }

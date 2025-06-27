@@ -10,11 +10,11 @@ default = []
 cuda = ["plonky2/cuda", "plonky2_field/cuda", "plonky2_cuda", "rustacuda", "rustacuda_core"] # "plonky2_sha512/cuda"
 
 [dependencies]
-plonky2 = { git = "https://github.com/ahmetyalp/plonky2.git", rev = "1fbdbc1f9a4c2228ac2623ab01a23d1dd0afa8ae" }
-plonky2_util = { git = "https://github.com/ahmetyalp/plonky2.git", rev = "1fbdbc1f9a4c2228ac2623ab01a23d1dd0afa8ae" }
-plonky2_field = { git = "https://github.com/ahmetyalp/plonky2.git", rev = "1fbdbc1f9a4c2228ac2623ab01a23d1dd0afa8ae" }
-# plonky2_u32 = { git = "https://github.com/ahmetyalp/plonky2.git", rev = "1fbdbc1f9a4c2228ac2623ab01a23d1dd0afa8ae" }
-# plonky2_ecdsa = { git = "https://github.com/ahmetyalp/plonky2.git", rev = "1fbdbc1f9a4c2228ac2623ab01a23d1dd0afa8ae" }
+plonky2 = { git = "https://github.com/ahmetyalp/plonky2.git", rev = "58439c2d662bb738c0000d9141852ef3fade9b97" }
+plonky2_util = { git = "https://github.com/ahmetyalp/plonky2.git", rev = "58439c2d662bb738c0000d9141852ef3fade9b97" }
+plonky2_field = { git = "https://github.com/ahmetyalp/plonky2.git", rev = "58439c2d662bb738c0000d9141852ef3fade9b97" }
+# plonky2_u32 = { git = "https://github.com/ahmetyalp/plonky2.git", rev = "58439c2d662bb738c0000d9141852ef3fade9b97" }
+# plonky2_ecdsa = { git = "https://github.com/ahmetyalp/plonky2.git", rev = "58439c2d662bb738c0000d9141852ef3fade9b97" }
 # plonky2_sha512 = { path = "./plonky2-sha512" }
 curve25519-dalek = { git = "https://github.com/polymerdao/curve25519-dalek", rev = "ed02bb5a", features = ["default"] }
 itertools = { version = "0.10.0", default-features = false, features = ["use_alloc"] }
