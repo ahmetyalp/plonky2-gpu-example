@@ -74,6 +74,11 @@ where
     let c_target = builder.add_virtual_public_input();
 
     let sum = builder.add(a_target, b_target);
+
+    while builder.num_gates() < 1 << 16 { // pad the circuit to 2^16 gates
+        builder.add_gate(plonky2::gates::noop::NoopGate, vec![]);
+    }
+
     builder.connect(sum, c_target);
 
     let mut pw = PartialWitness::new();
@@ -100,7 +105,7 @@ where
         let stream2 = Stream::new(StreamFlags::NON_BLOCKING, None)?;
 
         let poly_num: usize = data.common.config.num_wires;
-        let values_num_per_poly = 1 << 2; // Degree of the circuit
+        let values_num_per_poly = 1 << 16; // Degree of the circuit
         let blinding = false; // Because zero knowledge is false
         const SALT_SIZE: usize = 4;
         let rate_bits = data.common.config.fri_config.rate_bits;
