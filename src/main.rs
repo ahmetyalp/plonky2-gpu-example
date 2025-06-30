@@ -75,16 +75,12 @@ where
 
     let sum = builder.add(a_target, b_target);
 
-    while builder.num_gates() < 1 << 16 { // pad the circuit to 2^16 gates
-        builder.add_gate(plonky2::gates::noop::NoopGate, vec![]);
-    }
 
     builder.connect(sum, c_target);
 
-    let mut pw = PartialWitness::new();
-    pw.set_target(a_target, F::from_canonical_u64(a))?;
-    pw.set_target(b_target, F::from_canonical_u64(b))?;
-    pw.set_target(c_target, F::from_canonical_u64(c))?;
+    while builder.num_gates() < 1 << 16 { // pad the circuit to 2^16 gates
+        builder.add_gate(plonky2::gates::noop::NoopGate, vec![]);
+    }
 
     println!(
         "Constructing proof with {} gates",
@@ -92,6 +88,11 @@ where
     );
 
     let data = builder.build::<C>();
+
+    let mut pw = PartialWitness::new();
+    pw.set_target(a_target, F::from_canonical_u64(a))?;
+    pw.set_target(b_target, F::from_canonical_u64(b))?;
+    pw.set_target(c_target, F::from_canonical_u64(c))?;
 
     let mut ctx;
     {
