@@ -78,7 +78,7 @@ where
 
     builder.connect(sum, c_target);
 
-    while builder.num_gates() < 1 << 16 { // pad the circuit to 2^16 gates
+    while builder.num_gates() < 1 << 15 { // pad the circuit to 2^16 gates
         builder.add_gate(plonky2::gates::noop::NoopGate, vec![]);
     }
 
