@@ -89,6 +89,14 @@ where
 
     let data = builder.build::<C>();
 
+    println!(
+        "Circuit built with {} gates, {} gate instances, {} wires, {} public inputs",
+        data.common.num_gates(),
+        data.common.num_gate_constraints,
+        data.common.config.num_wires,
+        data.common.num_public_inputs
+    );
+
     let mut pw = PartialWitness::new();
     pw.set_target(a_target, F::from_canonical_u64(a))?;
     pw.set_target(b_target, F::from_canonical_u64(b))?;
@@ -309,19 +317,34 @@ where
     let c_target = builder.add_virtual_public_input();
 
     let sum = builder.add(a_target, b_target);
+
     builder.connect(sum, c_target);
 
-    let mut pw = PartialWitness::new();
-    pw.set_target(a_target, F::from_canonical_u64(a))?;
-    pw.set_target(b_target, F::from_canonical_u64(b))?;
-    pw.set_target(c_target, F::from_canonical_u64(c))?;
+    while builder.num_gates() < 1 << 15 { // pad the circuit to 2^16 gates
+        builder.add_gate(plonky2::gates::noop::NoopGate, vec![]);
+    }
 
     println!(
         "Constructing proof with {} gates",
         builder.num_gates()
     );
 
+    builder.print_gate_counts(0);
     let data = builder.build::<C>();
+
+    println!("Gates: {:?}", data.common.gates);
+    println!(
+        "Circuit built with {} gates, {} gate instances, {} wires, {} public inputs",
+        data.common.num_gates(),
+        data.common.num_gate_constraints,
+        data.common.config.num_wires,
+        data.common.num_public_inputs
+    );
+
+    let mut pw = PartialWitness::new();
+    pw.set_target(a_target, F::from_canonical_u64(a))?;
+    pw.set_target(b_target, F::from_canonical_u64(b))?;
+    pw.set_target(c_target, F::from_canonical_u64(c))?;
 
     let mut timing = TimingTree::new("prove cpu", Level::Debug);
     println!(
