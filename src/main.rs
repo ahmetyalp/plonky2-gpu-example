@@ -62,11 +62,15 @@ fn prove_sum_cuda<
     C: GenericConfig<D, F = F>,
     const D: usize,
 >(
-    a: u64, b: u64, c: u64,
+    a: &[u64],
+    b: &[u64],
+    c: &[u64],
 ) -> Result<ProofTuple<F, C, D>>
 where
     [(); C::Hasher::HASH_SIZE]:,
 {
+    assert_eq!(a.len(), b.len());
+    assert_eq!(a.len(), c.len());
     let mut builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_recursion_config());
 
     let a_target = builder.add_virtual_target();
@@ -77,14 +81,12 @@ where
 
     builder.connect(sum, c_target);
 
-    while builder.num_gates() < 1 << 15 { // pad the circuit to 2^16 gates
+    while builder.num_gates() < 1 << 15 {
+        // pad the circuit to 2^16 gates
         builder.add_gate(plonky2::gates::noop::NoopGate, vec![]);
     }
 
-    println!(
-        "Constructing proof with {} gates",
-        builder.num_gates()
-    );
+    println!("Constructing proof with {} gates", builder.num_gates());
 
     let data = builder.build::<C>();
 
@@ -95,11 +97,10 @@ where
         data.common.config.num_wires,
         data.common.num_public_inputs
     );
-
-    let mut pw = PartialWitness::new();
-    pw.set_target(a_target, F::from_canonical_u64(a))?;
-    pw.set_target(b_target, F::from_canonical_u64(b))?;
-    pw.set_target(c_target, F::from_canonical_u64(c))?;
+    println!(
+        "num_gate_constraints: {}, num_constants: {}, selectors_info: {:?}",
+        data.common.num_gate_constraints, data.common.num_constants, data.common.selectors_info,
+    );
 
     let mut ctx;
     {
@@ -189,7 +190,6 @@ where
         let digests_and_caps_buf2 = digests_and_caps_buf.clone();
         let digests_and_caps_buf3 = digests_and_caps_buf.clone();
         let pad_extvalues_len = ext_values_flatten.len();
-
 
         let cache_mem_device = {
             let cache_mem_device = unsafe {
@@ -282,34 +282,38 @@ where
         };
     }
 
-    let mut timing = TimingTree::new("prove gpu", Level::Debug);
-    println!(
-        "num_gate_constraints: {}, num_constants: {}, selectors_info: {:?}",
-        data.common.num_gate_constraints, data.common.num_constants, data.common.selectors_info,
-    );
-    let proof = prove(
-        &data.prover_only,
-        &data.common,
-        pw.clone(),
-        &mut timing,
-        Some(&mut ctx),
-    )?;
+    for i in 0..a.len() {
+        let mut pw = PartialWitness::new();
+        pw.set_target(a_target, F::from_canonical_u64(a[i]))?;
+        pw.set_target(b_target, F::from_canonical_u64(b[i]))?;
+        pw.set_target(c_target, F::from_canonical_u64(c[i]))?;
 
-    timing.print();
+        let mut timing = TimingTree::new("prove cpu", Level::Debug);
+        let proof = prove(
+            &data.prover_only,
+            &data.common,
+            pw,
+            &mut timing,
+            Some(&mut ctx),
+        )?;
+        data.verify(proof.clone()).expect("verify error");
 
-    let timing = TimingTree::new("verify", Level::Info);
-    data.verify(proof.clone()).expect("verify error");
-    timing.print();
+        timing.print();
+    }
 
-    Ok((proof, data.verifier_only, data.common))
+    Ok(())
 }
 
 fn prove_sum<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize>(
-    a: u64, b: u64, c: u64,
-) -> Result<ProofTuple<F, C, D>>
+    a: &[u64],
+    b: &[u64],
+    c: &[u64],
+) -> Result<()>
 where
     [(); C::Hasher::HASH_SIZE]:,
 {
+    assert_eq!(a.len(), b.len());
+    assert_eq!(a.len(), c.len());
     let mut builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_recursion_config());
 
     let a_target = builder.add_virtual_target();
@@ -320,19 +324,14 @@ where
 
     builder.connect(sum, c_target);
 
-    while builder.num_gates() < 1 << 15 { // pad the circuit to 2^16 gates
+    while builder.num_gates() < 1 << 15 {
+        // pad the circuit to 2^16 gates
         builder.add_gate(plonky2::gates::noop::NoopGate, vec![]);
     }
 
-    println!(
-        "Constructing proof with {} gates",
-        builder.num_gates()
-    );
+    println!("Constructing proof with {} gates", builder.num_gates());
 
-    println!(
-        "Number of LUTs: {}",
-        builder.num_luts()
-    );
+    println!("Number of LUTs: {}", builder.num_luts());
 
     builder.print_gate_counts(0);
     let data = builder.build::<C>();
@@ -345,40 +344,39 @@ where
         data.common.config.num_wires,
         data.common.num_public_inputs
     );
-
-    let mut pw = PartialWitness::new();
-    pw.set_target(a_target, F::from_canonical_u64(a))?;
-    pw.set_target(b_target, F::from_canonical_u64(b))?;
-    pw.set_target(c_target, F::from_canonical_u64(c))?;
-
-    let mut timing = TimingTree::new("prove cpu", Level::Debug);
     println!(
         "num_gate_constraints: {}, num_constants: {}, selectors_info: {:?}",
         data.common.num_gate_constraints, data.common.num_constants, data.common.selectors_info,
     );
-    let proof = prove(
-      &data.prover_only,
-      &data.common,
-      pw,
-      &mut timing,
-      #[cfg(feature = "cuda")]
-      None,
-    )?;
-    data.verify(proof.clone()).expect("verify error");
 
-    timing.print();
+    for i in 0..a.len() {
+        let mut pw = PartialWitness::new();
+        pw.set_target(a_target, F::from_canonical_u64(a[i]))?;
+        pw.set_target(b_target, F::from_canonical_u64(b[i]))?;
+        pw.set_target(c_target, F::from_canonical_u64(c[i]))?;
 
-    Ok((proof, data.verifier_only, data.common))
+        let mut timing = TimingTree::new("prove cpu", Level::Debug);
+
+        let proof = prove(
+            &data.prover_only,
+            &data.common,
+            pw,
+            &mut timing,
+            #[cfg(feature = "cuda")]
+            None,
+        )?;
+        data.verify(proof.clone()).expect("verify error");
+
+        timing.print();
+    }
+
+    Ok(())
 }
 
 #[derive(Parser)]
 struct Cli {
     #[arg(short, long)]
-    a: Option<u64>,
-    #[arg(short, long)]
-    b: Option<u64>,
-    #[arg(short, long)]
-    c: Option<u64>,
+    r: Option<u64>,
 }
 
 fn main() -> Result<()> {
@@ -398,24 +396,19 @@ fn main() -> Result<()> {
     type C = PoseidonGoldilocksConfig;
     type F = <C as GenericConfig<D>>::F;
 
+    let l = args.r.unwrap_or(1);
+    let a = (0..l).map(|i| i as u64).collect::<Vec<u64>>();
+    let b = (0..l).map(|i| (i + 1) as u64).collect::<Vec<u64>>();
+    let c = (0..l).map(|i| (i + 1 + i) as u64).collect::<Vec<u64>>();
+
     #[cfg(feature = "cuda")]
     {
-        let proof = prove_sum_cuda::<F, C, D>(
-            args.a.unwrap_or(1),
-            args.b.unwrap_or(2),
-            args.c.unwrap_or(3),
-        )?;
-        println!("Num public inputs: {}", proof.2.num_public_inputs);
+        prove_sum_cuda::<F, C, D>(&a, &b, &c)?;
     }
 
     #[cfg(not(feature = "cuda"))]
     {
-        let proof = prove_sum::<F, C, D>(
-            args.a.unwrap_or(1),
-            args.b.unwrap_or(2),
-            args.c.unwrap_or(3),
-        )?;
-        println!("Num public inputs: {}", proof.2.num_public_inputs);
+        prove_sum::<F, C, D>(&a, &b, &c)?;
     }
     return Ok(());
 }
