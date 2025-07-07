@@ -50,12 +50,6 @@ use rustacuda::prelude::*;
 // use cuda::runtime::{CudaError, cudaMalloc, cudaMemcpy, cudaFree};
 // use cuda::runtime::raw::{cudaError_t, cudaError_enum};
 
-type ProofTuple<F, C, const D: usize> = (
-    ProofWithPublicInputs<F, C, D>,
-    VerifierOnlyCircuitData<C, D>,
-    CommonCircuitData<F, D>,
-);
-
 #[cfg(feature = "cuda")]
 fn prove_sum_cuda<
     F: RichField + Extendable<D> + rustacuda::memory::DeviceCopy,
@@ -65,7 +59,7 @@ fn prove_sum_cuda<
     a: &[u64],
     b: &[u64],
     c: &[u64],
-) -> Result<ProofTuple<F, C, D>>
+) -> Result<()>
 where
     [(); C::Hasher::HASH_SIZE]:,
 {
