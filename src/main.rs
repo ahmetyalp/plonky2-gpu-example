@@ -75,7 +75,6 @@ where
 
     let sum = builder.add(a_target, b_target);
 
-
     builder.connect(sum, c_target);
 
     while builder.num_gates() < 1 << 15 { // pad the circuit to 2^16 gates
@@ -122,6 +121,7 @@ where
 
         let lg_n = log2_strict(values_num_per_poly);
         let n_inv = F::inverse_2exp(lg_n);
+        let _n_inv_ptr: *const F = &n_inv;
 
         let fft_root_table_max = fft_root_table(1 << (lg_n + rate_bits)).concat();
         let fft_root_table_deg = fft_root_table(1 << lg_n).concat();
@@ -284,7 +284,7 @@ where
 
     let mut timing = TimingTree::new("prove gpu", Level::Debug);
     println!(
-        "num_gate_constraints: {}, num_constraints: {}, selectors_info: {:?}",
+        "num_gate_constraints: {}, num_constants: {}, selectors_info: {:?}",
         data.common.num_gate_constraints, data.common.num_constants, data.common.selectors_info,
     );
     let proof = prove(
@@ -329,6 +329,11 @@ where
         builder.num_gates()
     );
 
+    println!(
+        "Number of LUTs: {}",
+        builder.num_luts()
+    );
+
     builder.print_gate_counts(0);
     let data = builder.build::<C>();
 
@@ -348,7 +353,7 @@ where
 
     let mut timing = TimingTree::new("prove cpu", Level::Debug);
     println!(
-        "num_gate_constraints: {}, num_constraints: {}, selectors_info: {:?}",
+        "num_gate_constraints: {}, num_constants: {}, selectors_info: {:?}",
         data.common.num_gate_constraints, data.common.num_constants, data.common.selectors_info,
     );
     let proof = prove(
