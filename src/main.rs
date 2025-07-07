@@ -4,6 +4,7 @@
 
 use anyhow::Result;
 use clap::Parser;
+use plonky2::timed;
 use core::num::ParseIntError;
 use log::{info, Level};
 use plonky2::gates::noop::NoopGate;
@@ -290,7 +291,11 @@ where
             &mut timing,
             Some(&mut ctx),
         )?;
-        data.verify(proof.clone()).expect("verify error");
+        timed!(
+            timing,
+            "verify",
+            data.verify(proof.clone()).expect("verify error")
+        );
 
         timing.print();
     }
@@ -359,7 +364,11 @@ where
             #[cfg(feature = "cuda")]
             None,
         )?;
-        data.verify(proof.clone()).expect("verify error");
+        timed!(
+            timing,
+            "verify",
+            data.verify(proof.clone()).expect("verify error")
+        );
 
         timing.print();
     }
